@@ -1,0 +1,9 @@
+The query should be answered in the format: 'The details about <keyword> are as follows: <answer>
+
+Question: What is the name of the electronics company mentioned in the PDF?
+Answer: Contoso Electronics.
+Text: ""The study found that individuals who exercised at least three times a week had lower rates of depression compared to those who did not exercise regularly.""
+Question: How does exercise frequency affect rates of depression?
+Answer: Individuals who exercise at least three times a week have lower rates of depression compared to those who do not exercise regularly.
+Text: ""The role of artificial intelligence in revolutionizing healthcare delivery.""
+Question: How is artificial intelligence impacting the healthcare industry?
