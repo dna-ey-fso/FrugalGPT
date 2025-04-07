@@ -16,6 +16,7 @@ from pathlib import Path
 from sentence_transformers import SentenceTransformer
 import faiss
 import numpy as np
+from PromptWizard import ClientPW
 
 # Function to preprocess text for scoring
 def scorer_text(text):
@@ -222,7 +223,7 @@ class LLMCascade_cache(object):
         return model_perf_test
     
     # Get a single completion result, using cache if enabled
-    def get_completion(self, query, genparams, system_prompt=None, content=None, few_shots=None, query_prompt_template=None):
+    async def get_completion(self, query, genparams, system_prompt=None, content=None, few_shots=None, query_prompt_template=None):
         # Vérifier le cache si activé
         if self.use_cache:
             cached_response, cached_model = self.cache.get_from_cache(query)
@@ -260,6 +261,19 @@ class LLMCascade_cache(object):
 
         # Ajouter la requête utilisateur
         full_prompt += f"User: {query}\nBot:"
+
+        client_pw = ClientPW()
+        optimized_prompt = full_prompt  # Valeur par défaut si l'optimisation échoue
+        try:
+            # Appeler les coroutines avec await
+            await client_pw.update_task_description(query, full_prompt)
+            best_prompt_response = await client_pw.get_best_prompt()
+            optimized_prompt = best_prompt_response.get("optimized_prompt", full_prompt)
+        except Exception as e:
+            logging.error(f"Failed to optimize prompt with PromptWizard: {e}")
+
+        # Utiliser le prompt optimisé
+        full_prompt = optimized_prompt
 
         # Boucle de sélection du modèle
         while True:

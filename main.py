@@ -49,7 +49,7 @@ class CascadeRequest(BaseModel):
 load_dotenv()
 
 # Function to execute the cascade logic
-def execute_cascade_logic(prompt: str, content: str, system_prompt: str, few_shots: list, query_prompt_template: str):
+async def execute_cascade_logic(prompt: str, content: str, system_prompt: str, few_shots: list, query_prompt_template: str):
     logging.info("Starting cascade logic execution")
     MyCascade = FrugalGPT.LLMCascade_cache()
     strategy_path = 'strategy/cascade_strategy.json'
@@ -72,7 +72,7 @@ def execute_cascade_logic(prompt: str, content: str, system_prompt: str, few_sho
         logging.info(f"Generation parameters: {genparams}")
 
         # Get the completion from the cascade
-        answer, model_used = MyCascade.get_completion(
+        answer, model_used = await MyCascade.get_completion(
             query=prompt,
             genparams=genparams,
             system_prompt=system_prompt,
@@ -164,7 +164,7 @@ def execute_gpt4o(prompt: str, content: str, system_prompt: str, few_shots: list
 @app.post("/execute_cascade")
 async def execute_cascade(request: CascadeRequest):
     try:
-        result = execute_cascade_logic(
+        result = await execute_cascade_logic(
             prompt=request.prompt,
             system_prompt=request.system_prompt,
             content=request.content,
@@ -197,7 +197,7 @@ async def compare_costs(request: CascadeRequest):
         logging.info("Received request for /compare_costs")
 
         # Execute cascade logic
-        cascade_result = execute_cascade_logic(
+        cascade_result = await execute_cascade_logic(
             prompt=request.prompt,
             system_prompt=request.system_prompt,
             content=request.content,
