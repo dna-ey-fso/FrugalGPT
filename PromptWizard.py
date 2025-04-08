@@ -51,6 +51,23 @@ class ClientPW:
                     response.raise_for_status()
                     result = await response.json()
                     #print("Raw Response:", result)  # Log de la réponse brute
+
+                    # Extraction des informations du prompt et du profil d'expert
+                    best_prompt = result.get("best_prompt")
+                    expert_profile = result.get("expert_profile")
+                    
+                    # Extraction des tokens d'input et d'output
+                    input_tokens = result.get("input_tokens")
+                    output_tokens = result.get("output_tokens")
+                    total_cost = result.get("total_tokens")
+
+                    # Affichage ou traitement des informations
+                    print(f"Best Prompt: {best_prompt}")
+                    print(f"Expert Profile: {expert_profile}")
+                    print(f"Input Tokens: {input_tokens}")
+                    print(f"Output Tokens: {output_tokens}")
+                    print(f"Total Tokens: {total_cost}")
+
                     return result
             except aiohttp.ClientError as e:
                 #print("Failed to get best prompt:", e)
