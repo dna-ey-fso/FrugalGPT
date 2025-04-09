@@ -224,30 +224,41 @@ class LLMCascade_cache(object):
     
     # Get a single completion result, using cache if enabled
     async def get_completion(self, query, genparams, system_prompt=None, content=None, few_shots=None, query_prompt_template=None):
-        # Vérifier le cache si activé
-        if self.use_cache:
+        # Special case: follow-up request for more details
+        is_followup = query.strip() == "Can you give me more details about it ?"
+        if is_followup:
+            if hasattr(self, 'last_query') and self.last_query:
+                query = self.last_query
+                genparams.max_tokens = min(genparams.max_tokens * 2, 4096)  # increase max tokens, up to a safe limit
+            else:
+                logging.warning("No previous query found for follow-up question.")
+
+        # Check cache (unless this is a follow-up request)
+        if self.use_cache and not is_followup:
             cached_response, cached_model = self.cache.get_from_cache(query)
             if cached_response is not None:
-                self.cost = 0  # Un cache ne coûte rien
+                self.cost = 0  # Cache hits are free
                 return cached_response, cached_model
 
-        # Initialiser les composants nécessaires
+        # Store the current query unless it's a follow-up
+        if not is_followup:
+            self.last_query = query
+
+        # Initialization
         LLMChain = self.LLMChain
         MyLLMEngine = self.MyLLMEngine
-        cost = 0 
+        cost = 0
         LLMChain.reset()
         prefix = self.prefix
         res = None
         model_used = None
 
-        # Construire le prompt complet
-        full_prompt = query_prompt_template or ""  # Use query_prompt_template if provided
+        # Build the prompt
+        full_prompt = query_prompt_template or ""
 
-        # Ajouter le prompt système s'il est fourni
         if system_prompt:
             full_prompt += f"{system_prompt}\n\n"
 
-        # Ajouter les exemples *few-shot*
         if few_shots:
             for example in few_shots:
                 if example["role"] == "user":
@@ -255,32 +266,26 @@ class LLMCascade_cache(object):
                 elif example["role"] == "assistant":
                     full_prompt += f"Bot: {example['content']}\n"
 
-        # Ajouter l'historique de conversation
         if content:
             full_prompt += f"{content}\n\n"
 
-        # Ajouter la requête utilisateur
-        full_prompt += f"User: {query}\nBot:"
-
+        # Try to optimize the prompt using PromptWizard
         client_pw = ClientPW()
-        optimized_prompt = full_prompt  # Valeur par défaut si l'optimisation échoue
+        optimized_prompt = full_prompt
         try:
-            # Appeler les coroutines avec await
-            await client_pw.update_task_description(query, full_prompt)
-            best_prompt_response = await client_pw.get_best_prompt()
+            best_prompt_response = await client_pw.auto_optimize_prompt(query, full_prompt)
             optimized_prompt = best_prompt_response.get("optimized_prompt", full_prompt)
         except Exception as e:
             logging.error(f"Failed to optimize prompt with PromptWizard: {e}")
 
-        # Utiliser le prompt optimisé
         full_prompt = optimized_prompt
 
-        # Boucle de sélection du modèle
+        # Try multiple models in sequence until one meets the score threshold
         while True:
             service_name, score_thres = LLMChain.nextAPIandScore()
             if service_name is None:
-                break
-            
+                break  # No more services to try
+
             logging.critical(f"Using service: {service_name}")
             res = MyLLMEngine.get_completion(query=full_prompt, service_name=service_name, genparams=genparams)
             cost += MyLLMEngine.get_cost()
@@ -289,14 +294,14 @@ class LLMCascade_cache(object):
             service_name = service_name.replace("/", "\\")
             score = self.MyScores[service_name].get_score(scorer_text(t2))
 
-            # Ajouter du bruit à la note si nécessaire
+            # Optionally add noise to score
             if self.score_noise_injection:
                 score += random.random() * self.eps
 
-            # Si la note est au-dessus du seuil, on valide ce modèle
+            # Accept response if score is above threshold
             if score > 1 - score_thres:
                 model_used = service_name
-                if self.use_cache:
+                if self.use_cache and not is_followup:
                     self.cache.add_to_cache(query, res, model_used)
                 break
 
