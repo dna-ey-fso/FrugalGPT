@@ -259,12 +259,12 @@ class LLMCascade_cache(object):
         if system_prompt:
             full_prompt += f"{system_prompt}\n\n"
 
-        if few_shots:
-            for example in few_shots:
-                if example["role"] == "user":
-                    full_prompt += f"User: {example['content']}\n"
-                elif example["role"] == "assistant":
-                    full_prompt += f"Bot: {example['content']}\n"
+        #if few_shots:
+            #for example in few_shots:
+                #if example["role"] == "user":
+                    #full_prompt += f"User: {example['content']}\n"
+                #elif example["role"] == "assistant":
+                    #full_prompt += f"Bot: {example['content']}\n"
 
         if content:
             full_prompt += f"{content}\n\n"
@@ -273,10 +273,12 @@ class LLMCascade_cache(object):
         client_pw = ClientPW()
         optimized_prompt = full_prompt
         try:
-            best_prompt_response = await client_pw.auto_optimize_prompt(query, full_prompt)
-            optimized_prompt = best_prompt_response.get("optimized_prompt", full_prompt)
+             # Appeler les coroutines avec await
+             await client_pw.update_task_description(query, full_prompt)
+             best_prompt_response = await client_pw.get_best_prompt()
+             optimized_prompt = best_prompt_response.get("optimized_prompt", full_prompt)
         except Exception as e:
-            logging.error(f"Failed to optimize prompt with PromptWizard: {e}")
+             logging.error(f"Failed to optimize prompt with PromptWizard: {e}")
 
         full_prompt = optimized_prompt
 

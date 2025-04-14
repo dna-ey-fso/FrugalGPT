@@ -13,8 +13,6 @@ from transformers import GPT2Tokenizer
 from azure.ai.inference import ChatCompletionsClient
 from azure.core.credentials import AzureKeyCredential
 
-from ai21 import AI21Client
-from ai21.models.chat import ChatMessage, ResponseFormat
 import google.generativeai as genai
 
 import base64
@@ -248,64 +246,6 @@ class OpenAIChatModelProvider(APIModelProvider):
             tk2 = 0
         return tk1, tk2  
 
-class AI21ModelProvider(APIModelProvider):
-    """
-    Provider for AI21 Studio models.
-    """
-    _ENDPOINT = os.environ.get("AI21_STUDIO_ENDPOINT", "https://api.ai21.com/studio/v1/{engine}/complete")
-    _API_KEY = os.environ.get('AI21_STUDIO_API_KEY', None)
-    _NAME = "ai21"
-    
-    def __init__(self, model):
-        self._model = model
-        assert self._API_KEY is not None, "Please set AI21_STUDIO_API_KEY env var for running through AI21 Studio"
-        self.client = AI21Client(api_key=os.environ.get("AI21_STUDIO_API_KEY"))
-
-    def _request_format(self, context, genparams):
-        req = {
-            "prompt": context,
-            "maxTokens": genparams.max_tokens,
-            "temperature": genparams.temperature,
-            "stopSequences": genparams.stop,
-            "model": self._model,
-        }           
-        return req
-    
-    def _response_format(self, response):
-        result = dict()
-        result['raw'] = response
-        result["completion"] = response.choices[0].message.content
-        return result    
-    
-    def _get_io_tokens(self, context, completion):
-        tk1 = completion['raw'].usage.prompt_tokens
-        tk2 = completion['raw'].usage.completion_tokens
-        return tk1, tk2 
-
-    def _api_call(self, endpoint, data, api_key, retries=10, retry_grace_time=10):
-        while True:
-            try:
-                response = self.client.chat.completions.create(
-                    model=data['model'],
-                    messages=[
-                        ChatMessage(
-                            role="user",
-                            content=data['prompt'],
-                        )
-                    ],
-                    documents=[],
-                    tools=[],
-                    n=1,
-                    max_tokens=data['maxTokens'],
-                    temperature=data['temperature'],
-                    top_p=1,
-                    stop=data['stopSequences'],
-                    response_format=ResponseFormat(type="text"),
-                )
-                return response 
-            except Exception as e:
-                print(f"Failed with errors {e}, retry")
-                time.sleep(retry_grace_time)
 
 class CohereAIModelProvider(APIModelProvider):
     """
