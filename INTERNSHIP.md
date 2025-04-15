@@ -1,6 +1,6 @@
 # Interaction between Azure Production RAG and FrugalGPT
 
-This document describes the interactions between the `azure-production-rag` and `FrugalGPT` projects, as well as the changes made to enable their integration. It aims to provide a clear and detailed overview.
+This document describes the interactions between the `azure-production-rag`, `FrugalGPT` and `PromptWIzard` projects, as well as the changes made to enable their integration. It aims to provide a clear and detailed overview.
 
 ---
 
@@ -9,8 +9,12 @@ This document describes the interactions between the `azure-production-rag` and 
 - **Azure Production RAG**: This project implements a Retrieval-Augmented Generation (RAG) system in production on Azure. It integrates advanced language models and document retrieval pipelines.
 
 - **FrugalGPT**: This project optimizes the cost of using language models by combining computational efficiency strategies and lightweight models. It relies on techniques such as prompt adaptation, LLM model approximation, and model cascades.
+`
+- **PromptWizard**: A system designed to enhance and optimize prompts based on user input context, ensuring more accurate and relevant responses. It plays a pre-processing role in the pipeline, improving prompt quality before inference.
 
-The main goal of the integration is to leverage FrugalGPT's optimizations to reduce inference costs in Azure Production's RAG pipeline while maintaining high response quality.
+
+The primary objective of this integration is to leverage FrugalGPT's cost optimizations and PromptWizard’s prompt refinement to enhance Azure Production RAG’s efficiency and response quality.
+
 
 ---
 
@@ -50,13 +54,21 @@ The main goal of the integration is to leverage FrugalGPT's optimizations to red
    - Introduced a caching solution in the `llmcache.py` file to reuse responses to similar questions, avoiding unnecessary API calls.
    - Used the `sentence-transformers` library with the `all-mpnet-base-v2` model available on Hugging Face: [link](https://huggingface.co/sentence-transformers/all-mpnet-base-v2). This model can be downloaded locally or called directly.
 
+### In `PromptWizard`
+
+1. **Integration API**:
+   - Built a REST API for generating optimized prompts before inference.
+   - The refined prompts are sent to FrugalGPT, enhancing response accuracy and reducing the likelihood of invoking high-cost models unnecessarily.
+
+
 ---
 
 ## Interaction Points
 
 1. **Inference Pipeline**:
-   - Azure Production RAG delegates certain inference steps (response generation, scoring, etc.) to FrugalGPT via the REST API.
-   - FrugalGPT returns optimized results, which are then integrated into the global pipeline.
+   - Azure Production RAG delegates key inference operations to FrugalGPT via API.
+   - PromptWizard acts as a pre-processing step, optimizing prompts before they enter the cascade pipeline.
+   - FrugalGPT returns optimized results, which are integrated back into the RAG workflow.
 
 2. **Cost Management**:
    - FrugalGPT provides detailed metrics, such as:
@@ -109,15 +121,23 @@ The main goal of the integration is to leverage FrugalGPT's optimizations to red
    ./run_scripts.ps1
    ```
 
+### Running `PromptWizard`
+1. Navigate to the project root directory.
+2. Start the server with:
+   ```bash
+   uvicorn server:app --host 127.0.0.1 -- port 7000 --reload
+   ```
+
 ### Running `FrugalGPT` and `azure-production-rag` Together
 
 1. Launch the respective commands:
    - For FrugalGPT: `uvicorn main:app --reload`
    - For Azure Production RAG: `./start.ps1`
-2. Once both projects are running, the interaction between the two repositories allows answering questions posed via the Legal Copilot frontend interface.
+   - For PromptWizard: `uvicorn server:app --host 127.0.0.1 -- port 7000 --reload`
+2. Once the projects are running, the interaction between the repositories allows answering questions posed via the Legal Copilot frontend interface.
 
 ---
 
 ## Conclusion
 
-This integration combines the power of Azure Production's RAG pipelines with FrugalGPT's advanced optimizations, offering a performant, cost-effective, and adaptable system. For any questions or issues, refer to the `CONTRIBUTING.md` and `CHANGELOG.md` files in both projects. Feel free to submit suggestions or bug reports via the respective GitHub repositories.
+This integration brings together the robustness of Azure’s production RAG system, the cost-efficiency of FrugalGPT, and the input optimization of PromptWizard. Together, they deliver a highly scalable, responsive, and budget-conscious AI solution. For more details, refer to the `CONTRIBUTING.md` and `CHANGELOG.md` files in each repository, and don’t hesitate to submit issues or suggestions via GitHub.
